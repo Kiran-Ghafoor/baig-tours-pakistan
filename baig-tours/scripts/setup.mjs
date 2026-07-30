@@ -1,0 +1,317 @@
+import { createClient } from "@sanity/client";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ─── Load env ────────────────────────────────────────────────
+const envPath = path.resolve(__dirname, "..", ".env.local");
+const envRaw = fs.readFileSync(envPath, "utf-8");
+const env = Object.fromEntries(
+  envRaw
+    .split("\n")
+    .filter((l) => l.trim() && !l.startsWith("#"))
+    .map((l) => {
+      const [k, ...v] = l.split("=");
+      return [k.trim(), v.join("=").trim()];
+    })
+);
+
+const projectId = env.NEXT_PUBLIC_SANITY_PROJECT_ID;
+const dataset = env.NEXT_PUBLIC_SANITY_DATASET ?? "production";
+const token = env.SANITY_API_TOKEN;
+
+if (!projectId) throw new Error("NEXT_PUBLIC_SANITY_PROJECT_ID is not set in .env.local");
+if (!token) throw new Error("SANITY_API_TOKEN is not set in .env.local");
+
+const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+const API_BASE = `https://api.sanity.io/v2024-01-01`;
+
+// ─── Helpers ─────────────────────────────────────────────────
+async function api(method, path, body) {
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${method} ${url} -> ${res.status}: ${text}`);
+  return text ? JSON.parse(text) : null;
+}
+
+async function ensureCorsOrigin() {
+  process.stdout.write("  ⚠ Cannot configure CORS automatically — editor API token lacks project management permissions.\n");
+  process.stdout.write("  → Add http://localhost:3000 as a CORS origin at:\n");
+  process.stdout.write("    https://www.sanity.io/manage → project → API → CORS origins\n");
+}
+
+async function ensureDataset() {
+  try {
+    const datasets = await api("GET", `/projects/${projectId}/datasets`);
+    const existing = datasets.find((d) => d.name === dataset);
+    if (existing) {
+      process.stdout.write(`  ✓ Dataset "${dataset}" already exists\n`);
+      return;
+    }
+    await api("PUT", `/projects/${projectId}/datasets/${dataset}`);
+    process.stdout.write(`  ✓ Created dataset "${dataset}"\n`);
+  } catch {
+    process.stdout.write("  ⚠ Cannot verify dataset — skipping (likely exists already or token lacks permission)\n");
+  }
+}
+
+// ─── Image upload + document creation ────────────────────────
+
+const client = createClient({ projectId, dataset, token, useCdn: false, apiVersion: "2024-01-01" });
+const PLACEHOLDER_URL = "https://picsum.photos/seed";
+
+async function uploadImage(seed, label) {
+  const url = `${PLACEHOLDER_URL}/${encodeURIComponent(seed)}/800/600`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const asset = await client.assets.upload("image", buffer, { filename: `${seed}.jpg` });
+    process.stdout.write(`  ✓ ${label}\n`);
+    return asset;
+  } catch (err) {
+    process.stdout.write(`  ✗ ${label} — ${err.message}\n`);
+    return null;
+  }
+}
+
+async function createDoc(doc) {
+  try {
+    await client.createOrReplace(doc);
+    process.stdout.write(`  ✓ ${doc._type}/${doc._id}\n`);
+  } catch (err) {
+    process.stdout.write(`  ✗ ${doc._type}/${doc._id} — ${err.message}\n`);
+  }
+}
+
+function imgRef(asset) {
+  if (!asset) return undefined;
+  return { _type: "image", asset: { _type: "reference", _ref: asset._id } };
+}
+
+function imgRefWithAlt(asset, alt) {
+  if (!asset) return undefined;
+  return { _type: "image", asset: { _type: "reference", _ref: asset._id }, alt };
+}
+
+// ─── Seed Data ────────────────────────────────────────────────
+
+const categories = [
+  { _type: "category", _id: "category-adventure", name: "Adventure", slug: { current: "adventure" }, icon: "Mountain", description: "Jeep safaris, glaciers & high passes", order: 1 },
+  { _type: "category", _id: "category-trekking", name: "Trekking", slug: { current: "trekking" }, icon: "Footprints", description: "Base camps & multi-day trails", order: 2 },
+  { _type: "category", _id: "category-luxury", name: "Luxury", slug: { current: "luxury" }, icon: "Gem", description: "Boutique stays & private guides", order: 3 },
+  { _type: "category", _id: "category-family", name: "Family", slug: { current: "family" }, icon: "Users", description: "Easy-paced, kid-friendly itineraries", order: 4 },
+  { _type: "category", _id: "category-culture", name: "Culture", slug: { current: "culture" }, icon: "Landmark", description: "Heritage cities & living history", order: 5 },
+  { _type: "category", _id: "category-honeymoon", name: "Honeymoon", slug: { current: "honeymoon" }, icon: "Heart", description: "Romantic escapes for two", order: 6 },
+];
+
+const destinations = [
+  { _type: "destination", _id: "dest-hunza", name: "Hunza Valley", slug: { current: "hunza" }, region: "Gilgit-Baltistan", province: "Gilgit-Baltistan", description: "Terraced orchards, snow-capped Rakaposhi and the warmth of Hunzai hospitality make this the crown jewel of Northern Pakistan.", bestTime: "April – October", coordinates: { _type: "object", x: 58, y: 12 }, order: 1, imageSeed: "hunza-valley" },
+  { _type: "destination", _id: "dest-skardu", name: "Skardu", slug: { current: "skardu" }, region: "Gilgit-Baltistan", province: "Gilgit-Baltistan", description: "Gateway to the Karakoram giants — cold deserts, turquoise lakes and the road to K2 all begin here.", bestTime: "May – September", coordinates: { _type: "object", x: 68, y: 18 }, order: 2, imageSeed: "skardu-landscape" },
+  { _type: "destination", _id: "dest-fairy-meadows", name: "Fairy Meadows", slug: { current: "fairy-meadows" }, region: "Gilgit-Baltistan", province: "Gilgit-Baltistan", description: "A pine-fringed meadow facing Nanga Parbat, reachable only by jeep track and a short forest trek.", bestTime: "June – September", coordinates: { _type: "object", x: 50, y: 20 }, order: 3, imageSeed: "fairy-meadows" },
+  { _type: "destination", _id: "dest-swat", name: "Swat Valley", slug: { current: "swat-valley" }, region: "Khyber Pakhtunkhwa", province: "Khyber Pakhtunkhwa", description: "Known as the Switzerland of Pakistan — green slopes, river valleys and family-friendly resorts.", bestTime: "March – November", coordinates: { _type: "object", x: 38, y: 24 }, order: 4, imageSeed: "swat-valley" },
+  { _type: "destination", _id: "dest-naran", name: "Naran & Kaghan", slug: { current: "naran-kaghan" }, region: "Khyber Pakhtunkhwa", province: "Khyber Pakhtunkhwa", description: "Home to Lake Saif-ul-Malook and a string of alpine lakes threaded along the Kunhar river.", bestTime: "May – September", coordinates: { _type: "object", x: 42, y: 28 }, order: 5, imageSeed: "naran-kaghan" },
+  { _type: "destination", _id: "dest-lahore", name: "Lahore", slug: { current: "lahore" }, region: "Punjab", province: "Punjab", description: "Mughal grandeur, walled-city food streets and Pakistan's cultural heartbeat.", bestTime: "October – March", coordinates: { _type: "object", x: 60, y: 62 }, order: 6, imageSeed: "lahore-city" },
+  { _type: "destination", _id: "dest-murree", name: "Murree", slug: { current: "murree" }, region: "Punjab", province: "Punjab", description: "A colonial hill station an hour from the capital — pine forests, mist and cable cars.", bestTime: "March – August, December (snow)", coordinates: { _type: "object", x: 46, y: 40 }, order: 7, imageSeed: "murree-hills" },
+  { _type: "destination", _id: "dest-concordia", name: "Concordia & K2", slug: { current: "concordia" }, region: "Gilgit-Baltistan", province: "Gilgit-Baltistan", description: "The ultimate trekking prize: four 8,000m giants ringing a single glacial amphitheatre.", bestTime: "June – August", coordinates: { _type: "object", x: 72, y: 10 }, order: 8, imageSeed: "concordia-k2" },
+];
+
+const tourPackages = [
+  { _type: "tourPackage", _id: "tour-hunza-luxury", title: "Hunza Valley Luxury Escape", slug: { current: "hunza-valley-luxury-escape" }, tag: "Most Loved", destination: { _type: "reference", _ref: "dest-hunza" }, category: { _type: "reference", _ref: "category-luxury" }, region: "Gilgit-Baltistan", description: "A curated luxury journey through Hunza's golden orchards, turquoise lakes and ancient forts — with boutique stays and private guides at every step.", highlights: ["Sunrise over Rakaposhi from a private balcony suite", "Guided walk through Karimabad's old town and Baltit Fort", "Private boat ride on the turquoise Attabad Lake", "Apricot orchard breakfast with a local Hunzai family"], price: 89500, originalPrice: 104000, duration: "6 Days / 5 Nights", nights: 5, groupSize: "2–12 people", difficulty: "Easy", included: ["5-night boutique hotel stay", "Private air-conditioned vehicle & driver", "Daily breakfast and 3 curated dinners", "English-speaking mountain guide", "All entry fees & permits"], excluded: ["International/domestic airfare", "Travel insurance", "Personal expenses"], itinerary: [{ day: 1, title: "Arrival in Gilgit → Hunza", description: "Scenic drive along the Karakoram Highway, evening arrival in Karimabad with a welcome dinner overlooking the valley." }, { day: 2, title: "Baltit & Altit Forts", description: "Full day exploring centuries-old forts, traditional Hunzai villages and terraced orchards." }, { day: 3, title: "Attabad Lake & Passu Cones", description: "Private boat ride on Attabad Lake followed by golden-hour photography at the Passu Cathedral peaks." }, { day: 4, title: "Eagle's Nest Sunrise", description: "Early departure to Duikar viewpoint for sunrise over Rakaposhi, free afternoon for leisure." }, { day: 5, title: "Khunjerab Valley Day Trip", description: "Optional drive toward the China border region, wildlife spotting in Khunjerab National Park." }, { day: 6, title: "Departure", description: "Leisurely breakfast, souvenir shopping in Karimabad bazaar, transfer to Gilgit airport." }], rating: 4.9, reviewCount: 214, bookedCount: 1840, featured: true, bestSeller: true, order: 1, imageSeed: "hunza-luxury" },
+  { _type: "tourPackage", _id: "tour-skardu-adventure", title: "Skardu Adventure Expedition", slug: { current: "skardu-adventure-expedition" }, tag: "Adventure", destination: { _type: "reference", _ref: "dest-skardu" }, category: { _type: "reference", _ref: "category-adventure" }, region: "Gilgit-Baltistan", description: "An adrenaline-fueled expedition through Skardu's cold desert, Deosai plains and turquoise alpine lakes — the adventure capital of Pakistan.", highlights: ["Jeep safari across the Cold Desert dunes of Skardu", "Trek to the base of Deosai's Sheosar Lake", "Sunset at Shangrila Resort's Lower Kachura Lake", "Camping night under the clearest skies in Pakistan"], price: 76000, duration: "5 Days / 4 Nights", nights: 4, groupSize: "4–16 people", difficulty: "Moderate", included: ["4-night stay (hotel + camping)", "4x4 jeep transport", "All meals", "Certified trek guide", "Camping equipment"], excluded: ["Airfare to Skardu", "Personal gear", "Travel insurance"], itinerary: [{ day: 1, title: "Arrival & Cold Desert", description: "Land in Skardu, jeep ride across the Katpana Cold Desert dunes." }, { day: 2, title: "Deosai National Plains", description: "Drive to Deosai, spot Himalayan brown bears, overnight camping." }, { day: 3, title: "Sheosar Lake Trek", description: "Morning trek to Sheosar Lake, return to Skardu by evening." }, { day: 4, title: "Shangrila & Upper Kachura", description: "Boating and photography at two of Pakistan's most photographed lakes." }, { day: 5, title: "Departure", description: "Free morning, transfer to airport." }], rating: 4.8, reviewCount: 176, bookedCount: 1320, featured: true, order: 2, imageSeed: "skardu-adventure" },
+  { _type: "tourPackage", _id: "tour-fairy-meadows", title: "Fairy Meadows & Nanga Parbat Base Camp Trek", slug: { current: "fairy-meadows-nanga-parbat-trek" }, tag: "Trekking", destination: { _type: "reference", _ref: "dest-fairy-meadows" }, category: { _type: "reference", _ref: "category-trekking" }, region: "Gilgit-Baltistan", description: "Trek to the foot of the Killer Mountain through one of the world's most thrilling jeep tracks and alpine meadows.", highlights: ["Jeep ride up one of the world's most thrilling mountain tracks", "Trek to Nanga Parbat Base Camp, the Killer Mountain", "Wooden cabin stay beneath pine forests", "Unobstructed views of the ninth-highest peak on Earth"], price: 62500, duration: "4 Days / 3 Nights", nights: 3, groupSize: "6–14 people", difficulty: "Challenging", included: ["3-night cabin stay", "Jeep transfer from Raikot Bridge", "All meals", "Local trekking guide & porter"], excluded: ["Transport to Raikot Bridge", "Sleeping bags", "Travel insurance"], itinerary: [{ day: 1, title: "Raikot Bridge → Fairy Meadows", description: "Thrilling jeep ascent followed by a short forest trek to the meadows." }, { day: 2, title: "Base Camp Trek", description: "Full-day trek to Nanga Parbat Base Camp with packed lunch." }, { day: 3, title: "Leisure & Viewpoints", description: "Relaxed day exploring Bayal Camp viewpoint and pine forest trails." }, { day: 4, title: "Descent & Departure", description: "Morning descent to Raikot Bridge, onward transfer." }], rating: 4.7, reviewCount: 141, bookedCount: 980, order: 3, imageSeed: "fairy-meadows-trek" },
+  { _type: "tourPackage", _id: "tour-swat-family", title: "Swat, Kalam & Malam Jabba Family Tour", slug: { current: "swat-kalam-malam-jabba-family-tour" }, tag: "Family Favorite", destination: { _type: "reference", _ref: "dest-swat" }, category: { _type: "reference", _ref: "category-family" }, region: "Khyber Pakhtunkhwa", description: "A relaxed family adventure through Pakistan's Switzerland — chairlifts over pine slopes, river picnics and ancient Buddhist ruins.", highlights: ["Chairlift ride over the pine slopes of Malam Jabba", "River-side picnic in Kalam's green valley", "Visit to the ancient Buddhist ruins of Butkara", "Family-friendly hotel with playground & river view"], price: 54000, duration: "5 Days / 4 Nights", nights: 4, groupSize: "2–20 people", difficulty: "Easy", included: ["4-night family rooms", "Private van with driver", "Daily breakfast & dinner", "Chairlift tickets"], excluded: ["Lunch", "Travel insurance", "Personal shopping"], itinerary: [{ day: 1, title: "Islamabad → Mingora", description: "Scenic drive into Swat, check-in and evening at leisure." }, { day: 2, title: "Malam Jabba", description: "Chairlift rides, mountain zipline and alpine walks." }, { day: 3, title: "Kalam Valley", description: "River picnic, visit Mahodand-adjacent viewpoints." }, { day: 4, title: "Marghazar & Fizagat Park", description: "White Palace visit and family time at Fizagat Park." }, { day: 5, title: "Departure", description: "Morning at leisure, drive back to Islamabad." }], rating: 4.8, reviewCount: 268, bookedCount: 2210, featured: true, bestSeller: true, order: 4, imageSeed: "swat-family" },
+  { _type: "tourPackage", _id: "tour-naran-kaghan", title: "Naran, Kaghan & Saif-ul-Malook Tour", slug: { current: "naran-kaghan-saif-ul-malook-tour" }, tag: "Best Value", destination: { _type: "reference", _ref: "dest-naran" }, category: { _type: "reference", _ref: "category-adventure" }, region: "Khyber Pakhtunkhwa", description: "Discover the legendary Lake Saif-ul-Malook, horse trails along the Kaghan river and alpine meadows at 3,400 metres.", highlights: ["Jeep ride to the legendary Lake Saif-ul-Malook", "Horse ride along the Kaghan river trails", "Visit Lulusar Lake at 3,410 metres", "Bonfire evening with live regional music"], price: 48000, duration: "4 Days / 3 Nights", nights: 3, groupSize: "2–16 people", difficulty: "Easy", included: ["3-night hotel stay", "4x4 jeep to Saif-ul-Malook", "Daily breakfast", "Bonfire & dinner night"], excluded: ["Lunch", "Horse ride fees", "Travel insurance"], itinerary: [{ day: 1, title: "Arrival in Naran", description: "Check-in, evening riverside walk and welcome bonfire." }, { day: 2, title: "Saif-ul-Malook & Lulusar", description: "Full day covering both alpine lakes." }, { day: 3, title: "Shogran & Siri Paye", description: "Chairlift and meadow walk with Makra Peak views." }, { day: 4, title: "Departure", description: "Breakfast and drive back." }], rating: 4.6, reviewCount: 302, bookedCount: 2670, order: 5, imageSeed: "naran-saif" },
+  { _type: "tourPackage", _id: "tour-lahore-heritage", title: "Lahore Heritage & Culinary City Tour", slug: { current: "lahore-heritage-culinary-city-tour" }, tag: "City Break", destination: { _type: "reference", _ref: "dest-lahore" }, category: { _type: "reference", _ref: "category-culture" }, region: "Punjab", description: "Walk the royal trail of Mughal Lahore, taste the city's legendary street food and witness the Wagah Border ceremony.", highlights: ["Badshahi Mosque and Lahore Fort guided walk", "Wagah Border flag-lowering ceremony", "Food trail through the walking streets of Old Anarkali", "Evening at the illuminated Delhi Gate"], price: 28500, duration: "3 Days / 2 Nights", nights: 2, groupSize: "2–25 people", difficulty: "Easy", included: ["2-night 4-star hotel", "Private city guide", "Wagah Border transfer", "Food trail with 6 tastings"], excluded: ["Flights", "Lunch on day 2", "Travel insurance"], itinerary: [{ day: 1, title: "Old City Walking Tour", description: "Lahore Fort, Badshahi Mosque and the Royal Trail." }, { day: 2, title: "Wagah Border & Food Trail", description: "Afternoon border ceremony followed by an Old Anarkali food walk." }, { day: 3, title: "Departure", description: "Shalimar Gardens visit and onward transfer." }], rating: 4.9, reviewCount: 189, bookedCount: 1560, order: 6, imageSeed: "lahore-heritage" },
+  { _type: "tourPackage", _id: "tour-k2-basecamp", title: "K2 Base Camp & Concordia Trek", slug: { current: "k2-basecamp-concordia-trek" }, tag: "Expedition", destination: { _type: "reference", _ref: "dest-concordia" }, category: { _type: "reference", _ref: "category-trekking" }, region: "Gilgit-Baltistan", description: "The ultimate trekking expedition to the throne room of the world's highest peaks — a 14-day journey through Baltoro Glacier to Concordia.", highlights: ["Stand at Concordia, the throne room of four 8,000m peaks", "Trek past Baltoro Glacier, one of the largest outside the poles", "Full expedition support with high-altitude porters", "Certificate of completion from Baig Tours Expeditions"], price: 245000, duration: "14 Days / 13 Nights", nights: 13, groupSize: "6–10 people", difficulty: "Expert", included: ["Full expedition logistics", "All camping & meals on trek", "Government-licensed HAP guides", "Permits & park fees"], excluded: ["Flights to Islamabad/Skardu", "Personal trekking gear", "Emergency evacuation insurance"], itinerary: [{ day: 1, title: "Islamabad → Skardu", description: "Flight or scenic drive to Skardu, briefing and gear check." }, { day: 2, title: "Skardu → Askole", description: "Jeep transfer to the last village before the wilderness." }, { day: 3, title: "Trek to Jhola", description: "First trekking day along the Braldu river." }, { day: 4, title: "Jhola → Paiju", description: "Approach to the snout of Baltoro Glacier." }, { day: 5, title: "Rest Day at Paiju", description: "Acclimatization and gear preparation." }, { day: 6, title: "Paiju → Khoburtse", description: "Onto the glacier proper." }, { day: 7, title: "Khoburtse → Concordia", description: "Arrival at Concordia beneath K2, Broad Peak and Gasherbrums." }, { day: 8, title: "Concordia Exploration", description: "Optional push to K2 Base Camp." }, { day: 9, title: "Return Trek Begins", description: "Retrace to Khoburtse." }, { day: 10, title: "Khoburtse → Paiju", description: "Continued descent." }, { day: 11, title: "Paiju → Jhola", description: "Descent along the Baltoro." }, { day: 12, title: "Jhola → Askole", description: "Final trekking day." }, { day: 13, title: "Askole → Skardu", description: "Jeep transfer back to Skardu." }, { day: 14, title: "Departure", description: "Flight/drive back to Islamabad." }], rating: 5.0, reviewCount: 58, bookedCount: 210, order: 7, imageSeed: "k2-basecamp" },
+  { _type: "tourPackage", _id: "tour-murree-honeymoon", title: "Islamabad & Murree Honeymoon Getaway", slug: { current: "islamabad-murree-honeymoon-getaway" }, tag: "Romantic", destination: { _type: "reference", _ref: "dest-murree" }, category: { _type: "reference", _ref: "category-honeymoon" }, region: "Punjab", description: "A romantic escape through the capital's landmarks and Murree's misty pine forests — candlelight dinners, couples' spa and sunset chairlifts.", highlights: ["Private candlelight dinner overlooking the Pindi valley", "Couples' spa evening at a boutique pine-forest resort", "Sunset chairlift at Patriata (New Murree)", "Guided Faisal Mosque & Daman-e-Koh photo session"], price: 68000, duration: "4 Days / 3 Nights", nights: 3, groupSize: "2 people", difficulty: "Easy", included: ["3-night couple suite", "Private candlelight dinner", "Couples spa session", "Private car with driver"], excluded: ["Flights", "Lunch", "Travel insurance"], itinerary: [{ day: 1, title: "Arrival in Islamabad", description: "Faisal Mosque and Daman-e-Koh sunset viewpoint." }, { day: 2, title: "Murree Mall Road", description: "Leisurely walk, cable car, evening candlelight dinner." }, { day: 3, title: "Patriata New Murree", description: "Chairlift and cable car ride, couples spa in the evening." }, { day: 4, title: "Departure", description: "Morning at leisure, transfer to airport." }], rating: 4.9, reviewCount: 97, bookedCount: 640, order: 8, imageSeed: "murree-honeymoon" },
+];
+
+const testimonials = [
+  { _type: "testimonial", _id: "test-ayesha", name: "Ayesha Raza", location: "Karachi", rating: 5, tour: { _type: "reference", _ref: "tour-hunza-luxury" }, comment: "Every detail was handled — from the private guide to the surprise apricot breakfast. Baig Tours made Hunza feel like a five-star secret. The boutique hotel in Karimabad had Rakaposhi glowing right outside our window every morning.", publishedAt: "2026-06-15T10:00:00Z", featured: true, avatarSeed: "avatar-ayesha" },
+  { _type: "testimonial", _id: "test-bilal", name: "Bilal Ahmed", location: "Lahore", rating: 5, tour: { _type: "reference", _ref: "tour-skardu-adventure" }, comment: "Camping under the Deosai sky is something I'll never forget. The jeep drivers were pros and the whole trip felt completely safe. Sheosar Lake at sunrise was the most beautiful thing I've ever seen in Pakistan.", publishedAt: "2026-05-20T10:00:00Z", featured: true, avatarSeed: "avatar-bilal" },
+  { _type: "testimonial", _id: "test-sara", name: "Sara Malik", location: "Islamabad", rating: 4.8, tour: { _type: "reference", _ref: "tour-swat-family" }, comment: "Traveling with two kids is never simple, but the itinerary pace was perfect and the hotel had a playground right on the river. Our guide even arranged a surprise horse ride for the children in Kalam.", publishedAt: "2026-04-10T10:00:00Z", featured: true, avatarSeed: "avatar-sara" },
+  { _type: "testimonial", _id: "test-hamza", name: "Hamza Sheikh", location: "Multan", rating: 5, tour: { _type: "reference", _ref: "tour-k2-basecamp" }, comment: "Fourteen days, four 8,000m peaks, and a support team that never once let logistics get in the way of the experience. Standing at Concordia with K2 towering above us — that's a moment I'll carry forever.", publishedAt: "2025-08-25T10:00:00Z", featured: false, avatarSeed: "avatar-hamza" },
+  { _type: "testimonial", _id: "test-zainab", name: "Zainab Qureshi", location: "Faisalabad", rating: 4.9, tour: { _type: "reference", _ref: "tour-murree-honeymoon" }, comment: "The candlelight dinner overlooking the valley was the highlight of our honeymoon. Booking and payment were effortless too. We're already planning our anniversary trip to Hunza with Baig Tours.", publishedAt: "2026-03-05T10:00:00Z", featured: true, avatarSeed: "avatar-zainab" },
+  { _type: "testimonial", _id: "test-ahmed", name: "Ahmed Khan", location: "Peshawar", rating: 5, tour: { _type: "reference", _ref: "tour-naran-kaghan" }, comment: "Saif-ul-Malook at dawn is genuinely magical — the mist lifting off the turquoise water with Makra Peak behind it. Our bonfire night with live music was the perfect end to the trip. Incredible value for money.", publishedAt: "2026-06-01T10:00:00Z", featured: false, avatarSeed: "avatar-ahmed" },
+];
+
+const galleryImages = [
+  { _type: "galleryImage", _id: "gal-01", caption: "Golden hour at Attabad Lake", location: "Hunza", likes: 482, order: 1, imageSeed: "attabad-lake" },
+  { _type: "galleryImage", _id: "gal-02", caption: "Camp night in Deosai", location: "Skardu", likes: 391, order: 2, imageSeed: "deosai-camp" },
+  { _type: "galleryImage", _id: "gal-03", caption: "Nanga Parbat from Fairy Meadows", location: "Fairy Meadows", likes: 567, order: 3, imageSeed: "nanga-parbat-meadow" },
+  { _type: "galleryImage", _id: "gal-04", caption: "Chairlift over Malam Jabba", location: "Swat", likes: 274, order: 4, imageSeed: "malam-jabba" },
+  { _type: "galleryImage", _id: "gal-05", caption: "Saif-ul-Malook at dawn", location: "Naran", likes: 618, order: 5, imageSeed: "saif-ul-malook" },
+  { _type: "galleryImage", _id: "gal-06", caption: "Badshahi Mosque courtyard", location: "Lahore", likes: 340, order: 6, imageSeed: "badshahi-mosque" },
+  { _type: "galleryImage", _id: "gal-07", caption: "Concordia panorama", location: "K2 Base Camp", likes: 705, order: 7, imageSeed: "concordia-pano" },
+  { _type: "galleryImage", _id: "gal-08", caption: "Cable car above the pines", location: "Murree", likes: 219, order: 8, imageSeed: "murree-cable-car" },
+];
+
+const faqs = [
+  { _type: "faq", _id: "faq-01", question: "How do I book a tour with Baig Tours?", answer: "You can book directly through our website by visiting the /booking page, or call us at 03079222271. Our team will confirm availability within a few hours and send you a detailed itinerary with payment options. We accept bank transfers, JazzCash, and Easypaisa.", category: "Booking", order: 1 },
+  { _type: "faq", _id: "faq-02", question: "What is your cancellation and refund policy?", answer: "Full refund if cancelled 15+ days before departure. 50% refund for cancellations 7–14 days prior. No refund within 7 days of departure, but you can reschedule to another date within 6 months at no extra charge (subject to availability).", category: "Payment", order: 2 },
+  { _type: "faq", _id: "faq-03", question: "Are your tours safe for solo travelers and women?", answer: "Absolutely. Safety is our top priority. All drivers are licensed, vehicles are regularly maintained, and guides are certified professionals. We regularly host solo female travelers and can arrange women-only groups on request. Our 24/7 on-trip support line is always available.", category: "Safety", order: 3 },
+  { _type: "faq", _id: "faq-04", question: "What should I pack for a Northern Pakistan trek?", answer: "Layering is key: base layer, insulated mid-layer, and windproof shell. Broken-in trekking boots with ankle support are essential above 3,000m. Don't forget a headlamp, sunscreen SPF50+, sunglasses, and a basic first-aid kit. We send a detailed packing list after booking.", category: "Packing & Gear", order: 4 },
+  { _type: "faq", _id: "faq-05", question: "Do I need a visa or permits for the Northern Areas?", answer: "Foreign nationals need a NOC (No Objection Certificate) for Gilgit-Baltistan and certain restricted areas. We handle all permit applications as part of the tour package. Pakistani citizens just need a valid CNIC. For K2 Base Camp treks, separate park permits are included in your package.", category: "Visa & Permits", order: 5 },
+];
+
+const offers = [
+  { _type: "offer", _id: "offer-monsoon", title: "Monsoon Madness Sale", slug: { current: "monsoon-madness-sale" }, badge: "20% OFF", description: "Escape the city rains and head to the mountains. Get 20% off on all Hunza, Swat and Naran tours departing in July and August. Limited slots available.", discountPercent: 20, promoCode: "MONSOON20", validFrom: "2026-07-01T00:00:00Z", validUntil: "2026-08-31T23:59:59Z", isActive: true, imageSeed: "monsoon-sale" },
+  { _type: "offer", _id: "offer-early-bird", title: "Early Bird — K2 Base Camp 2027", slug: { current: "early-bird-k2-2027" }, badge: "Early Bird", description: "Book your K2 Base Camp & Concordia Trek for summer 2027 before September 30 and save Rs. 25,000 per person. Includes complimentary gear rental.", discountPercent: 10, promoCode: "EARLYK2", validFrom: "2026-07-01T00:00:00Z", validUntil: "2026-09-30T23:59:59Z", isActive: true, imageSeed: "early-bird-k2" },
+  { _type: "offer", _id: "offer-family", title: "Family Getaway Bundle", slug: { current: "family-getaway-bundle" }, badge: "FAMILY", description: "Book 3+ people on any Family or Honeymoon tour and the third person goes at 50% off. Includes free kids activity kit and surprise gifts. Valid all year.", discountPercent: 15, promoCode: "FAMILY15", validFrom: "2026-01-01T00:00:00Z", validUntil: "2026-12-31T23:59:59Z", isActive: true, imageSeed: "family-bundle" },
+];
+
+const notifications = [
+  { _type: "notification", _id: "notif-01", title: "New booking confirmed", message: "Ayesha Raza booked Hunza Valley Luxury Escape for 2 travelers, departing August 4.", type: "booking", read: false, createdAt: "2026-07-28T06:15:00Z" },
+  { _type: "notification", _id: "notif-02", title: "New 5-star review received", message: "Hamza Sheikh left a 5-star review for K2 Base Camp & Concordia Trek.", type: "review", read: false, createdAt: "2026-07-28T05:30:00Z" },
+  { _type: "notification", _id: "notif-03", title: "Contact form submission", message: "A traveler from Dubai asked about a custom Swat family itinerary for 6 people in September.", type: "contact", read: true, createdAt: "2026-07-27T14:20:00Z" },
+];
+
+const teamMembers = [
+  { _type: "teamMember", _id: "team-abdullah", name: "Abdullah Baig", slug: { current: "abdullah-baig" }, role: "CEO & Founder", bio: "Born in Gilgit, raised on the Karakoram Highway. Abdullah started Baig Tours with a single jeep and a conviction that Northern Pakistan deserves better travel experiences. Nine years and 24,000+ travelers later, that conviction drives every itinerary.", phone: "03079222271", email: "abdullah@baigtourspakistan.pk", order: 1, photoSeed: "abdullah-baig" },
+  { _type: "teamMember", _id: "team-fatima", name: "Fatima Noor", slug: { current: "fatima-noor" }, role: "Head of Content & Marketing", bio: "Fatima is a travel writer turned content strategist who has been blogging about Northern Pakistan since 2019. She manages Baig Tours' blog, social media and email campaigns.", email: "fatima@baigtourspakistan.pk", order: 2, photoSeed: "fatima-noor" },
+  { _type: "teamMember", _id: "team-usman", name: "Usman Ali", slug: { current: "usman-ali" }, role: "Operations Manager", bio: "With 12 years in tourism logistics, Usman ensures every tour runs like clockwork — from vehicle inspections to hotel check-ins to emergency protocols on mountain roads.", email: "usman@baigtourspakistan.pk", order: 3, photoSeed: "usman-ali" },
+];
+
+const blogPosts = [
+  { _type: "blogPost", _id: "blog-hunza-season", title: "The Best Time to Visit Hunza Valley (Season by Season)", slug: { current: "best-time-to-visit-hunza-valley" }, excerpt: "From cherry blossoms in spring to golden autumn orchards — here's how to pick the right month for your Hunza trip.", author: "Abdullah Baig", category: "Travel Guides", tags: ["Hunza", "Seasons", "Planning"], readTime: "6 min read", publishedAt: "2026-07-12T10:00:00Z", imageSeed: "hunza-seasons", content: [{ _type: "block", style: "normal", children: [{ _type: "span", text: "Hunza Valley is beautiful year-round, but each season offers a completely different experience. Spring (March–April) brings cherry blossom season when the entire valley turns pink and white. Summer (May–August) is peak travel season with warm days perfect for trekking and apricot harvesting. Autumn (September–October) transforms the orchards into shades of gold and red, offering the most photogenic landscapes. Winter (November–February) sees snowfall and a peaceful quiet, ideal for those who want solitude and snow-capped views without the crowds." }] }] },
+  { _type: "blogPost", _id: "blog-packing", title: "The Complete Packing List for a Northern Pakistan Trek", slug: { current: "packing-list-northern-pakistan-trek" }, excerpt: "What actually earns space in your bag for a multi-day trek through Gilgit-Baltistan — and what to leave behind.", author: "Fatima Noor", category: "Trekking", tags: ["Packing", "Trekking", "Gear"], readTime: "5 min read", publishedAt: "2026-06-28T10:00:00Z", imageSeed: "packing-trek", content: [{ _type: "block", style: "normal", children: [{ _type: "span", text: "Packing for a Northern Pakistan trek requires careful planning. Start with a good quality 50–70 litre backpack. Clothing should be layered: a moisture-wicking base layer, an insulating fleece or down jacket, and a waterproof outer shell. Sturdy trekking boots with ankle support are non-negotiable. Don't forget a warm hat, gloves, sunscreen (SPF 50+), sunglasses, a headlamp, and a reusable water bottle with purification tablets. Most importantly, pack light — every kilogram counts on multi-day treks." }] }] },
+  { _type: "blogPost", _id: "blog-lakes", title: "5 Hidden Lakes of Gilgit-Baltistan Most Tourists Miss", slug: { current: "hidden-lakes-of-gilgit-baltistan" }, excerpt: "Beyond Saif-ul-Malook — the quieter alpine lakes worth the extra hour of driving.", author: "Abdullah Baig", category: "Destinations", tags: ["Lakes", "Gilgit-Baltistan", "Hidden Gems"], readTime: "7 min read", publishedAt: "2026-06-03T10:00:00Z", imageSeed: "hidden-lakes", content: [{ _type: "block", style: "normal", children: [{ _type: "span", text: "While everyone heads to Saif-ul-Malook and Attabad, Gilgit-Baltistan harbours lesser-known alpine gems that reward those willing to go off the beaten path. Lake Phander in Nagar Valley offers emerald waters surrounded by terraced fields. Rush Lake near Passu requires a short trek but delivers unparalleled views of the Passu Cones. Then there's Sheosar Lake in Deosai, Borith Lake in Gojal, and the stunningly blue Naltar Lakes — each offering solitude and raw beauty far from the tourist crowds." }] }] },
+  { _type: "blogPost", _id: "blog-responsible", title: "How We Practice Responsible Tourism in the Northern Areas", slug: { current: "responsible-tourism-northern-areas" }, excerpt: "Our approach to protecting the trails, villages and glaciers that make Northern Pakistan worth visiting.", author: "Abdullah Baig", category: "Sustainability", tags: ["Responsible Travel", "Community"], readTime: "4 min read", publishedAt: "2026-05-20T10:00:00Z", imageSeed: "responsible-tourism", content: [{ _type: "block", style: "normal", children: [{ _type: "span", text: "Responsible tourism is at the heart of everything we do at Baig Tours. We hire local guides and porters from the communities we visit, ensuring tourism income stays within the region. We practice a strict leave-no-trace policy on all treks, use reusable water bottles instead of plastic, and educate our travelers about local customs and traditions before they arrive. We also partner with local conservation groups working to protect the fragile alpine ecosystem of the Karakoram." }] }] },
+];
+
+const siteNotifications = [
+  { _type: "siteNotification", _id: "site-notif-01", title: "Summer Sale", message: "Book any Northern Pakistan tour and get 15% off — offer valid until August 15.", variant: "promo", isActive: true, scheduledAt: "2026-07-01T00:00:00Z", expiresAt: "2026-08-16T00:00:00Z", link: "/tours", linkText: "View Tours" },
+  { _type: "siteNotification", _id: "site-notif-02", title: "New Blog Post", message: "Read our latest guide: Hidden Lakes of Gilgit-Baltistan — alpine gems worth the extra hour of driving.", variant: "info", isActive: false, scheduledAt: "2026-07-03T00:00:00Z", expiresAt: "2026-07-31T00:00:00Z", link: "/blog", linkText: "Read Blog" },
+  { _type: "siteNotification", _id: "site-notif-03", title: "Independence Day Announcement", message: "Special August 14th cultural tour of Lahore — limited spots available.", variant: "announcement", isActive: true, scheduledAt: "2026-08-01T00:00:00Z", expiresAt: "2026-08-15T00:00:00Z", link: "/tours", linkText: "Book Now" },
+];
+
+const homePage = {
+  _type: "homePage", _id: "homePage",
+  heroEyebrow: "Pakistan Baig Tours",
+  heroHeading: "Trips that turn into the stories you tell.",
+  heroSubheading: "From Hunza's golden orchards to the throne room of K2 — handcrafted Northern Pakistan journeys, guided by locals who call these valleys home.",
+  stats: [{ label: "Happy Travelers", value: 24800 }, { label: "Curated Tours", value: 96 }, { label: "Destinations Covered", value: 42 }, { label: "Years of Trust", value: 9 }],
+  featuredToursHeading: { eyebrow: "Handpicked Journeys", title: "Featured tours our travelers keep booking", description: "A curated shortlist across luxury, adventure and family travel — refreshed each season by our own guides." },
+  destinationsHeading: { eyebrow: "Where To Next", title: "Popular destinations across the north", description: "Every valley has its own season, story and pace — here are the eight our travelers return to most." },
+  categoriesHeading: { eyebrow: "Travel Your Way", title: "Six ways to experience Pakistan" },
+  reviewsHeading: { eyebrow: "Traveler Stories", title: "Loved by thousands of Pakistani travelers" },
+  reelsHeading: { eyebrow: "Watch Before You Book", title: "Travel reels from the trail", description: "Short-form clips shot by our guides on the exact routes you'll walk." },
+  blogsHeading: { eyebrow: "From The Journal", title: "Stories, guides & field notes", description: "Practical advice written by the guides who actually run these trips." },
+  newsletterHeading: { eyebrow: "Stay Inspired", title: "Get first access to new routes & seasonal offers" },
+  reels: [{ title: "60 Seconds in Hunza" }, { title: "Camping in Deosai" }, { title: "Approach to Concordia" }, { title: "Chairlift at Malam Jabba" }, { title: "Saif-ul-Malook at Dawn" }, { title: "A Day in Old Lahore" }],
+};
+
+const siteSettings = {
+  _type: "siteSettings", _id: "siteSettings",
+  companyName: "Baig Tours Pakistan",
+  footerDescription: "Pakistan's premium travel partner for the Northern Areas — trips that make stories, planned with care from arrival to departure.",
+  contact: { phone: "03079222271", email: "info@baigtourspakistan.pk", address: "UGF 21–22, Landmark Plaza, Jail Road, Lahore", workingHours: "10 AM – 10 PM", departureDays: "Every Monday & Thursday Night" },
+  socialMedia: { facebook: "https://web.facebook.com/p/Baig-tours-Pakistan-61574927528161", instagram: "https://www.instagram.com/baigtour_pakistan_/", youtube: "", tiktok: "https://www.tiktok.com/@baigtourspakistan1", whatsapp: "923079222271" },
+  privacyPolicySlug: { current: "privacy-policy" }, termsSlug: { current: "terms-and-conditions" },
+  about: { eyebrow: "Our Story", title: "Trips that make stories, since day one", description: "Baig Tours Pakistan began with a simple frustration: too many travelers were seeing the north through rushed, one-size-fits-all group tours. We started with a single jeep and a route through Hunza — today we run curated journeys across Gilgit-Baltistan, Khyber Pakhtunkhwa and Punjab, still with the same promise: every trip is planned like it's for our own family." },
+  founder: { name: "Abdullah Baig", role: "CEO, Baig Tours Pakistan", quote: "We built Baig Tours around one idea — trusted, comfortable travel that treats every guest like a returning friend, not a booking number." },
+  values: [{ icon: "Shield", title: "Trusted & Safe", description: "Licensed drivers, vetted guides and 24/7 on-trip support for every group." }, { icon: "Compass", title: "Local Expertise", description: "Every itinerary is built by guides who grew up in the valleys they lead you through." }, { icon: "HeartHandshake", title: "Community First", description: "We hire and source locally so tourism income stays in the communities we visit." }, { icon: "Award", title: "Premium Service", description: "From airport pickup to the final photo stop, every detail is planned in advance." }],
+};
+
+const seoSettings = {
+  _type: "seoSettings", _id: "seoSettings",
+  metaTitle: "Baig Tours Pakistan | Trips That Make Stories",
+  metaDescription: "Pakistan's premium travel booking platform for Hunza, Skardu, Fairy Meadows, Swat, Naran, Lahore and K2 Base Camp. Handcrafted tours, trusted local guides, effortless booking.",
+  focusKeywords: "Pakistan tours, Hunza Valley tour, Skardu tour package, Northern Pakistan travel, K2 base camp trek, Baig Tours Pakistan",
+  canonicalDomain: "https://www.baigtourspakistan.pk", siteName: "Baig Tours Pakistan", locale: "en_PK",
+};
+
+// ─── MAIN ─────────────────────────────────────────────────────
+
+async function main() {
+  // Step 1: Configure Sanity project (CORS + dataset)
+  process.stdout.write("\n── Configuring Sanity project ──\n\n");
+  await ensureCorsOrigin();
+  await ensureDataset();
+
+  // Step 2: Upload images
+  process.stdout.write("\n── Uploading images ──\n\n");
+  const imageMap = {};
+  const allImageSeeds = new Set();
+  for (const d of destinations) allImageSeeds.add(d.imageSeed);
+  for (const t of tourPackages) allImageSeeds.add(t.imageSeed);
+  for (const t of testimonials) if (t.avatarSeed) allImageSeeds.add(t.avatarSeed);
+  for (const g of galleryImages) allImageSeeds.add(g.imageSeed);
+  for (const o of offers) if (o.imageSeed) allImageSeeds.add(o.imageSeed);
+  for (const m of teamMembers) if (m.photoSeed) allImageSeeds.add(m.photoSeed);
+  for (const b of blogPosts) if (b.imageSeed) allImageSeeds.add(b.imageSeed);
+  for (const seed of allImageSeeds) imageMap[seed] = await uploadImage(seed, seed);
+
+  // Step 3: Create documents
+  process.stdout.write("\n── Creating documents ──\n\n");
+
+  process.stdout.write("◆ Categories\n");
+  for (const doc of categories) await createDoc(doc);
+
+  process.stdout.write("◆ Destinations\n");
+  for (const d of destinations) {
+    const { imageSeed, ...rest } = d;
+    await createDoc({ ...rest, image: imgRefWithAlt(imageMap[imageSeed], `${rest.name} landscape`) });
+  }
+
+  process.stdout.write("◆ Tour Packages\n");
+  for (const t of tourPackages) {
+    const { imageSeed, ...rest } = t;
+    await createDoc({ ...rest, image: imgRefWithAlt(imageMap[imageSeed], rest.title) });
+  }
+
+  process.stdout.write("◆ Testimonials\n");
+  for (const t of testimonials) {
+    const { avatarSeed, ...rest } = t;
+    await createDoc({ ...rest, avatar: imgRef(imageMap[avatarSeed]) });
+  }
+
+  process.stdout.write("◆ Gallery Images\n");
+  for (const g of galleryImages) {
+    const { imageSeed, ...rest } = g;
+    await createDoc({ ...rest, image: imgRefWithAlt(imageMap[imageSeed], g.caption) });
+  }
+
+  process.stdout.write("◆ FAQs\n");
+  for (const doc of faqs) await createDoc(doc);
+
+  process.stdout.write("◆ Offers\n");
+  for (const o of offers) {
+    const { imageSeed, ...rest } = o;
+    await createDoc({ ...rest, image: imgRefWithAlt(imageMap[imageSeed], rest.title) });
+  }
+
+  process.stdout.write("◆ Notifications\n");
+  for (const doc of notifications) await createDoc(doc);
+
+  process.stdout.write("◆ Site Notifications\n");
+  for (const doc of siteNotifications) await createDoc(doc);
+
+  process.stdout.write("◆ Team Members\n");
+  for (const m of teamMembers) {
+    const { photoSeed, ...rest } = m;
+    await createDoc({ ...rest, photo: imgRefWithAlt(imageMap[photoSeed], rest.name) });
+  }
+
+  process.stdout.write("◆ Blog Posts\n");
+  for (const b of blogPosts) {
+    const { imageSeed, ...rest } = b;
+    await createDoc({ ...rest, image: imgRefWithAlt(imageMap[imageSeed], rest.title) });
+  }
+
+  process.stdout.write("◆ Singletons\n");
+  await createDoc(homePage);
+  await createDoc(siteSettings);
+  await createDoc(seoSettings);
+
+  process.stdout.write("\n✅ Setup complete! Restart the dev server and refresh /studio.\n");
+}
+
+main().catch((err) => {
+  console.error("\n❌ Setup failed:", err.message);
+  process.exit(1);
+});

@@ -1,0 +1,30 @@
+# Node Modules
+node_modules/
+**/node_modules/
+
+# Next.js
+.next/
+**/.next/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+**/.env
+**/.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build
+dist/
+build/
+
+# Vercel
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db

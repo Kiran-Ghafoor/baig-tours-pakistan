@@ -1,0 +1,13 @@
+{
+  "name": "Baig Tours Pakistan",
+  "short_name": "Baig Tours",
+  "description": "Premium travel bookings across Northern Pakistan",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF7F0",
+  "theme_color": "#D4A017",
+  "icons": [
+    { "src": "/icon.jpg", "sizes": "192x192", "type": "image/jpeg" },
+    { "src": "/icon.jpg", "sizes": "512x512", "type": "image/jpeg" }
+  ]
+}
