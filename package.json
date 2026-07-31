@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently -n be,fe -c blue,green \"cd backend && npx tsx watch src/app.ts\" \"cd baig-tours && npx next dev --port 3000\"",
-    "build": "cd backend && npm run build && cd ..\\baig-tours && npm run build",
+    "build": "cd backend && npm install && npm run build && cd ../baig-tours && npm install && npm run build",
     "start": "concurrently -n be,fe -c blue,green \"cd backend && node dist/app.js\" \"cd baig-tours && npx next start --port 3000\"",
     "install:all": "cd backend && npm install && cd ..\\baig-tours && npm install"
   },
