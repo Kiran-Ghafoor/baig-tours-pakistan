@@ -11,11 +11,13 @@ if (missing.length > 0) {
 }
 
 export const env = {
-  port: parseInt(process.env.PORT ?? "4000", 10),
+  port: parseInt(process.env.BACKEND_PORT ?? process.env.PORT ?? "4000", 10),
   nodeEnv: process.env.NODE_ENV ?? "development",
   mongodbUri: process.env.MONGODB_URI!,
   jwtSecret: process.env.JWT_SECRET!,
-  corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+  corsOrigin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim())
+    : "http://localhost:3000",
 
   // SMTP (Nodemailer)
   smtpHost: process.env.SMTP_HOST ?? "",

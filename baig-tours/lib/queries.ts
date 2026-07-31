@@ -69,6 +69,7 @@ const DEFAULT_HOME_PAGE: HomePageData = {
 };
 
 export async function getHomePageData(): Promise<HomePageData> {
+  if (!sanityClient) return DEFAULT_HOME_PAGE;
   try {
     const raw = await sanityClient.fetch(HOMEPAGE_QUERY);
     if (!raw || !raw.heroHeading) return DEFAULT_HOME_PAGE;
@@ -94,6 +95,7 @@ const SITE_NOTIFICATIONS_QUERY = `*[_type == "siteNotification" && isActive == t
 }`;
 
 export async function getSiteNotifications(): Promise<SiteNotification[]> {
+  if (!sanityClient) return [];
   try {
     const raw = await sanityClient.fetch(SITE_NOTIFICATIONS_QUERY);
     return sanitySiteNotificationsToSiteNotifications(raw);
@@ -138,6 +140,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
+  if (!sanityClient) return DEFAULT_SITE_SETTINGS;
   try {
     const raw = await sanityClient.fetch(SITE_SETTINGS_QUERY);
     if (!raw || !raw.contact) return DEFAULT_SITE_SETTINGS;

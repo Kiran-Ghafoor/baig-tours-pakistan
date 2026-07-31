@@ -5,6 +5,9 @@ let readClient: SanityClient | null = null;
 let writeClient: SanityClient | null = null;
 
 function getClient(token?: string): SanityClient {
+  if (!env.sanityProjectId) {
+    throw new Error("Sanity is not configured: NEXT_PUBLIC_SANITY_PROJECT_ID is missing");
+  }
   return createClient({
     projectId: env.sanityProjectId,
     dataset: "production",

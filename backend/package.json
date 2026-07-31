@@ -6,8 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/app.js",
-    "dev": "tsx watch src/app.ts",
-    "prestart": "tsc"
+    "dev": "tsx watch src/app.ts"
   },
   "dependencies": {
     "@sanity/client": "^7.25.0",

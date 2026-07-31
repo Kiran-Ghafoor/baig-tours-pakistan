@@ -3,6 +3,7 @@ import { Booking } from "../models/booking.model";
 import { Customer } from "../models/customer.model";
 import { sendEmail, bookingConfirmationEmail } from "../utils/email";
 import { getReadClient } from "../utils/sanity";
+import { findFallbackTour } from "../data/tours";
 import { AppError } from "../middlewares/error.middleware";
 
 export async function getBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -31,7 +32,10 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
       price = tour.price;
     } catch (err) {
       if (err instanceof AppError) throw err;
-      throw new AppError("Failed to fetch tour details", 500);
+      const fallback = findFallbackTour(tourSlug);
+      if (!fallback) throw new AppError("Tour not found", 404);
+      tourTitle = fallback.title;
+      price = fallback.price;
     }
 
     const amount = price * travelers;
