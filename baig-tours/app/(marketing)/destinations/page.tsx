@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { destinations } from "@/data/content";
+import { getDestinations } from "@/lib/queries";
 import { PageHeader } from "@/components/shared/page-header";
 import { DestinationCard } from "@/components/tours/destination-card";
 
@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   description: "Explore Baig Tours Pakistan's covered regions across Gilgit-Baltistan, Khyber Pakhtunkhwa and Punjab.",
 };
 
-export default function DestinationsPage() {
+export default async function DestinationsPage() {
+  const destinations = await getDestinations();
   return (
     <>
       <PageHeader

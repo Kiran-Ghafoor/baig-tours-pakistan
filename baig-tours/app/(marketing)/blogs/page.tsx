@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { blogPosts } from "@/data/content";
+import { getBlogPosts } from "@/lib/queries";
 import { PageHeader } from "@/components/shared/page-header";
 
 export const metadata: Metadata = {
@@ -9,7 +9,8 @@ export const metadata: Metadata = {
   description: "Guides, packing lists and field notes from the Baig Tours Pakistan team.",
 };
 
-export default function BlogsPage() {
+export default async function BlogsPage() {
+  const blogPosts = await getBlogPosts();
   return (
     <>
       <PageHeader

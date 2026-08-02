@@ -12,15 +12,29 @@ import { TravelBlogs } from "@/components/home/travel-blogs";
 import { Newsletter } from "@/components/home/newsletter";
 import { MountainDivider } from "@/components/shared/mountain-divider";
 import { NotificationBar } from "@/components/home/notification-bar";
-import { getFeaturedTours, getGalleryImages, getHomePageData, getSiteNotifications } from "@/lib/queries";
+import {
+  getFeaturedTours,
+  getGalleryImages,
+  getHomePageData,
+  getSiteNotifications,
+  getDestinations,
+  getCategories,
+  getCustomerReviews,
+  getBlogPosts,
+} from "@/lib/queries";
 
 export default async function HomePage() {
-  const [featuredTours, galleryItems, homePage, siteNotifications] = await Promise.all([
-    getFeaturedTours(),
-    getGalleryImages(),
-    getHomePageData(),
-    getSiteNotifications(),
-  ]);
+  const [featuredTours, galleryItems, homePage, siteNotifications, destinations, categories, reviews, blogs] =
+    await Promise.all([
+      getFeaturedTours(),
+      getGalleryImages(),
+      getHomePageData(),
+      getSiteNotifications(),
+      getDestinations(),
+      getCategories(),
+      getCustomerReviews(),
+      getBlogPosts(),
+    ]);
 
   return (
     <>
@@ -34,22 +48,22 @@ export default async function HomePage() {
         slides={homePage.heroSlides}
         buttons={homePage.heroButtons}
       />
-      <SmartSearch />
+      <SmartSearch destinations={destinations} />
       <FeaturedTours tours={featuredTours} heading={homePage.featuredToursHeading} />
       <div className="text-charcoal-950">
         <MountainDivider />
       </div>
-      <PopularDestinations />
+      <PopularDestinations destinations={destinations} />
       <StatsBand stats={homePage.stats} />
-      <TravelCategories />
-      <PakistanMap />
+      <TravelCategories categories={categories} />
+      <PakistanMap destinations={destinations} />
       <div className="text-charcoal-950">
         <MountainDivider />
       </div>
-      <CustomerReviews />
+      <CustomerReviews reviews={reviews} />
       <InstagramGallery galleryItems={galleryItems} />
       <TravelReels />
-      <TravelBlogs />
+      <TravelBlogs posts={blogs} />
       <Newsletter />
     </>
   );

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { MapPin, CalendarDays, Users, Search } from "lucide-react";
-import { destinations } from "@/data/content";
+import type { Destination } from "@/types";
 
 const searchSchema = z.object({
   destination: z.string().min(1, "Choose a destination"),
@@ -27,7 +27,7 @@ const months = [
   "October",
 ];
 
-export function SmartSearch() {
+export function SmartSearch({ destinations }: { destinations: Destination[] }) {
   const router = useRouter();
   const {
     register,

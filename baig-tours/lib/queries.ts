@@ -1,30 +1,268 @@
 import { sanityClient } from "./sanity-client";
-import { sanityHomePageToData, sanitySiteNotificationsToSiteNotifications, sanitySiteSettingsToSiteSettings } from "./adapters";
-import type { Tour, GalleryItem, HomePageData, SiteNotification, SiteSettings } from "@/types";
+import {
+  sanityBlogToBlog,
+  sanityCategoryToCategory,
+  sanityDestinationToDestination,
+  sanityGalleryToGalleryItems,
+  sanityHomePageToData,
+  sanitySiteNotificationsToSiteNotifications,
+  sanitySiteSettingsToSiteSettings,
+  sanityTestimonialToReview,
+  sanityTourToTour,
+  sanityToursToTours,
+} from "./adapters";
+import type {
+  Tour,
+  GalleryItem,
+  HomePageData,
+  SiteNotification,
+  SiteSettings,
+  Destination,
+  Category,
+  Review,
+  BlogPost,
+} from "@/types";
+
+type RawDestination = Parameters<typeof sanityDestinationToDestination>[0];
+type RawCategory = Parameters<typeof sanityCategoryToCategory>[0];
+
+const TOUR_FIELDS = `{
+  _id,
+  title,
+  slug,
+  tag,
+  destination->{name},
+  category->{name},
+  region,
+  description,
+  highlights,
+  price,
+  originalPrice,
+  duration,
+  nights,
+  groupSize,
+  difficulty,
+  included,
+  excluded,
+  itinerary,
+  rating,
+  reviewCount,
+  bookedCount,
+  featured,
+  bestSeller,
+  image,
+  gallery
+}`;
+
+const TOURS_QUERY = `*[_type == "tourPackage"] | order(order asc)${TOUR_FIELDS}`;
+const FEATURED_TOURS_QUERY = `*[_type == "tourPackage" && featured == true] | order(order asc)${TOUR_FIELDS}`;
+const TOUR_BY_SLUG_QUERY = `*[_type == "tourPackage" && slug.current == $slug][0]${TOUR_FIELDS}`;
 
 export async function getTours(): Promise<Tour[]> {
   const { tours } = await import("@/data/tours");
-  return tours;
-}
-
-export async function getTourBySlug(slug: string): Promise<Tour | undefined> {
-  const { tours } = await import("@/data/tours");
-  return tours.find((t) => t.slug === slug);
+  if (!sanityClient) return tours;
+  try {
+    const raw = await sanityClient.fetch(TOURS_QUERY);
+    const mapped = sanityToursToTours(raw ?? []);
+    return mapped.length > 0 ? mapped : tours;
+  } catch {
+    return tours;
+  }
 }
 
 export async function getFeaturedTours(): Promise<Tour[]> {
   const { featuredTours } = await import("@/data/tours");
-  return featuredTours;
+  if (!sanityClient) return featuredTours;
+  try {
+    const raw = await sanityClient.fetch(FEATURED_TOURS_QUERY);
+    const mapped = sanityToursToTours(raw ?? []);
+    return mapped.length > 0 ? mapped : featuredTours;
+  } catch {
+    return featuredTours;
+  }
+}
+
+export async function getTourBySlug(slug: string): Promise<Tour | undefined> {
+  const { tours } = await import("@/data/tours");
+  if (!sanityClient) return tours.find((t) => t.slug === slug);
+  try {
+    const raw = await sanityClient.fetch(TOUR_BY_SLUG_QUERY, { slug });
+    if (raw && raw._id) return sanityTourToTour(raw);
+    return tours.find((t) => t.slug === slug);
+  } catch {
+    return tours.find((t) => t.slug === slug);
+  }
 }
 
 export async function getTourSlugs(): Promise<string[]> {
-  const { tours } = await import("@/data/tours");
-  return tours.map((t) => t.slug);
+  return (await getTours()).map((t) => t.slug);
 }
+
+const DESTINATION_FIELDS = `{
+  _id,
+  name,
+  slug,
+  region,
+  province,
+  description,
+  bestTime,
+  coordinates,
+  image
+}`;
+
+const DESTINATIONS_QUERY = `*[_type == "destination"] | order(order asc)${DESTINATION_FIELDS}`;
+const DESTINATION_BY_SLUG_QUERY = `*[_type == "destination" && slug.current == $slug][0]${DESTINATION_FIELDS}`;
+
+function countToursForDestination(tours: Tour[], name: string): number {
+  const key = name.split(" ")[0].toLowerCase();
+  return tours.filter((t) => t.destination.toLowerCase().includes(key)).length;
+}
+
+export async function getDestinations(): Promise<Destination[]> {
+  const { destinations } = await import("@/data/content");
+  if (!sanityClient) return destinations;
+  try {
+    const raw = await sanityClient.fetch(DESTINATIONS_QUERY);
+    if (!raw || raw.length === 0) return destinations;
+    const tours = await getTours();
+    const mapped = (raw as RawDestination[]).map((d) =>
+      sanityDestinationToDestination(d, countToursForDestination(tours, d.name ?? ""))
+    );
+    return mapped.length > 0 ? mapped : destinations;
+  } catch {
+    return destinations;
+  }
+}
+
+export async function getDestinationBySlug(slug: string): Promise<Destination | undefined> {
+  const { destinations } = await import("@/data/content");
+  if (!sanityClient) return destinations.find((d) => d.slug === slug);
+  try {
+    const raw = await sanityClient.fetch(DESTINATION_BY_SLUG_QUERY, { slug });
+    if (raw && raw._id) {
+      const tours = await getTours();
+      return sanityDestinationToDestination(raw, countToursForDestination(tours, raw.name ?? ""));
+    }
+    return destinations.find((d) => d.slug === slug);
+  } catch {
+    return destinations.find((d) => d.slug === slug);
+  }
+}
+
+const CATEGORIES_QUERY = `*[_type == "category"] | order(order asc){
+  _id,
+  name,
+  slug,
+  icon,
+  description
+}`;
+
+export async function getCategories(): Promise<Category[]> {
+  const { categories } = await import("@/data/content");
+  if (!sanityClient) return categories;
+  try {
+    const raw = await sanityClient.fetch(CATEGORIES_QUERY);
+    if (!raw || raw.length === 0) return categories;
+    const tours = await getTours();
+    const mapped = (raw as RawCategory[]).map((c) =>
+      sanityCategoryToCategory(
+        c,
+        tours.filter((t) => t.category === c.name).length
+      )
+    );
+    return mapped.length > 0 ? mapped : categories;
+  } catch {
+    return categories;
+  }
+}
+
+const GALLERY_QUERY = `*[_type == "galleryImage"] | order(order asc){
+  _id,
+  image,
+  caption,
+  location,
+  likes
+}`;
 
 export async function getGalleryImages(): Promise<GalleryItem[]> {
   const { galleryItems } = await import("@/data/content");
-  return galleryItems;
+  if (!sanityClient) return galleryItems;
+  try {
+    const raw = await sanityClient.fetch(GALLERY_QUERY);
+    const mapped = sanityGalleryToGalleryItems(raw ?? []);
+    return mapped.length > 0 ? mapped : galleryItems;
+  } catch {
+    return galleryItems;
+  }
+}
+
+const REVIEWS_QUERY = `*[_type == "testimonial"] | order(featured desc, publishedAt desc){
+  _id,
+  name,
+  location,
+  avatar,
+  rating,
+  tour->{title},
+  comment,
+  publishedAt
+}`;
+
+export async function getCustomerReviews(): Promise<Review[]> {
+  const { reviews } = await import("@/data/content");
+  if (!sanityClient) return reviews;
+  try {
+    const raw = await sanityClient.fetch(REVIEWS_QUERY);
+    const mapped = (raw ?? []).map(sanityTestimonialToReview);
+    return mapped.length > 0 ? mapped : reviews;
+  } catch {
+    return reviews;
+  }
+}
+
+const BLOG_FIELDS = `{
+  _id,
+  title,
+  slug,
+  excerpt,
+  content,
+  image,
+  author,
+  authorAvatar,
+  category,
+  tags,
+  readTime,
+  publishedAt
+}`;
+
+const BLOGS_QUERY = `*[_type == "blogPost"] | order(publishedAt desc)${BLOG_FIELDS}`;
+const BLOG_BY_SLUG_QUERY = `*[_type == "blogPost" && slug.current == $slug][0]${BLOG_FIELDS}`;
+
+export async function getBlogPosts(): Promise<BlogPost[]> {
+  const { blogPosts } = await import("@/data/content");
+  if (!sanityClient) return blogPosts;
+  try {
+    const raw = await sanityClient.fetch(BLOGS_QUERY);
+    const mapped = (raw ?? []).map(sanityBlogToBlog);
+    return mapped.length > 0 ? mapped : blogPosts;
+  } catch {
+    return blogPosts;
+  }
+}
+
+export async function getBlogPostBySlug(slug: string): Promise<BlogPost | undefined> {
+  const { blogPosts } = await import("@/data/content");
+  if (!sanityClient) return blogPosts.find((p) => p.slug === slug);
+  try {
+    const raw = await sanityClient.fetch(BLOG_BY_SLUG_QUERY, { slug });
+    if (raw && raw._id) return sanityBlogToBlog(raw);
+    return blogPosts.find((p) => p.slug === slug);
+  } catch {
+    return blogPosts.find((p) => p.slug === slug);
+  }
+}
+
+export async function getBlogSlugs(): Promise<string[]> {
+  return (await getBlogPosts()).map((p) => p.slug);
 }
 
 const HOMEPAGE_QUERY = `*[_type == "homePage"][0]{

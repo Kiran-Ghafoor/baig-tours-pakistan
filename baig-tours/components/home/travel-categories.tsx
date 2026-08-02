@@ -3,8 +3,8 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Mountain, Footprints, Gem, Users, Landmark, Heart } from "lucide-react";
-import { categories } from "@/data/content";
 import { SectionHeading } from "@/components/shared/section-heading";
+import type { Category } from "@/types";
 
 const iconMap = {
   Mountain,
@@ -15,7 +15,7 @@ const iconMap = {
   Heart,
 } as const;
 
-export function TravelCategories() {
+export function TravelCategories({ categories }: { categories: Category[] }) {
   return (
     <section className="bg-cream-200 py-24">
       <div className="container-app">

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { tours } from "@/data/tours";
-import { destinations } from "@/data/content";
+import { getTours, getDestinations } from "@/lib/queries";
 import { TourCard } from "@/components/tours/tour-card";
 import { PageHeader } from "@/components/shared/page-header";
 
@@ -16,6 +15,7 @@ export default async function SearchResultsPage({
   searchParams: Promise<{ destination?: string; month?: string; travelers?: string }>;
 }) {
   const params = await searchParams;
+  const [destinations, tours] = await Promise.all([getDestinations(), getTours()]);
   const dest = destinations.find((d) => d.slug === params.destination);
 
   const results = dest

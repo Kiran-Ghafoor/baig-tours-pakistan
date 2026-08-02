@@ -37,6 +37,12 @@ export async function POST(req: NextRequest) {
         break;
       case "galleryImage":
         revalidatePath("/gallery");
+        revalidatePath("/", "layout");
+        break;
+      case "testimonial":
+      case "category":
+        revalidatePath("/", "layout");
+        revalidatePath("/tours");
         break;
       case "homePage":
       case "siteSettings":

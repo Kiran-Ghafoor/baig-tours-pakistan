@@ -5,11 +5,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { SectionHeading } from "@/components/shared/section-heading";
-import { destinations } from "@/data/content";
+import type { Destination } from "@/types";
 
-export function PakistanMap() {
-  const [active, setActive] = useState(destinations[0].id);
-  const activeDest = destinations.find((d) => d.id === active)!;
+export function PakistanMap({ destinations }: { destinations: Destination[] }) {
+  const [active, setActive] = useState(destinations[0]?.id ?? "");
+  const activeDest = destinations.find((d) => d.id === active) ?? destinations[0];
+
+  if (!activeDest || destinations.length === 0) return null;
 
   return (
     <section className="bg-cream py-24">

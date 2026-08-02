@@ -1,8 +1,8 @@
-import { destinations } from "@/data/content";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { DestinationCard } from "@/components/tours/destination-card";
+import type { Destination } from "@/types";
 
-export function PopularDestinations() {
+export function PopularDestinations({ destinations }: { destinations: Destination[] }) {
   return (
     <section className="bg-cream-200 py-24">
       <div className="container-app">

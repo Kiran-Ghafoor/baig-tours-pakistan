@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { destinations } from "@/data/content";
-import { tours } from "@/data/tours";
+import { getDestinationBySlug, getDestinations, getTours } from "@/lib/queries";
 import { PageHeader } from "@/components/shared/page-header";
 import { TourCard } from "@/components/tours/tour-card";
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  const destinations = await getDestinations();
   return destinations.map((d) => ({ slug: d.slug }));
 }
 
@@ -16,7 +16,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const dest = destinations.find((d) => d.slug === slug);
+  const dest = await getDestinationBySlug(slug);
   if (!dest) return {};
   return { title: dest.name, description: dest.description };
 }
@@ -27,9 +27,10 @@ export default async function DestinationDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const dest = destinations.find((d) => d.slug === slug);
+  const dest = await getDestinationBySlug(slug);
   if (!dest) notFound();
 
+  const tours = await getTours();
   const relatedTours = tours.filter(
     (t) => t.destination.toLowerCase().includes(dest.name.split(" ")[0].toLowerCase())
   );

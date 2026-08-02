@@ -2,12 +2,12 @@
 
 import Image from "next/image";
 import { Quote } from "lucide-react";
-import { reviews } from "@/data/content";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { Rating } from "@/components/ui/rating";
 import { Reveal } from "@/components/shared/reveal";
+import type { Review } from "@/types";
 
-export function CustomerReviews() {
+export function CustomerReviews({ reviews }: { reviews: Review[] }) {
   return (
     <section className="bg-cream py-24">
       <div className="container-app">

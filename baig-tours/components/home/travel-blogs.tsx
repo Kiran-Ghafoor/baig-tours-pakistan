@@ -1,10 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { blogPosts } from "@/data/content";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { Button } from "@/components/ui/button";
+import type { BlogPost } from "@/types";
 
-export function TravelBlogs() {
+export function TravelBlogs({ posts }: { posts: BlogPost[] }) {
   return (
     <section className="bg-cream py-24">
       <div className="container-app">
@@ -20,7 +20,7 @@ export function TravelBlogs() {
         </div>
 
         <div className="mt-12 grid gap-8 lg:grid-cols-3">
-          {blogPosts.slice(0, 3).map((post) => (
+          {posts.slice(0, 3).map((post) => (
             <Link
               key={post.id}
               href={`/blogs/${post.slug}`}

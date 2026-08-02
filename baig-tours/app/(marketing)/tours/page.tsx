@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { categories } from "@/data/content";
-import { getTours } from "@/lib/queries";
+import { getTours, getCategories } from "@/lib/queries";
 import { TourCard } from "@/components/tours/tour-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { ToursFilterBar } from "@/components/tours/tours-filter-bar";
@@ -18,7 +17,7 @@ export default async function ToursPage({
 }) {
   const params = await searchParams;
   const activeCategory = params.category;
-  const tours = await getTours();
+  const [tours, categories] = await Promise.all([getTours(), getCategories()]);
   const filtered = activeCategory
     ? tours.filter((t) => t.category === activeCategory)
     : tours;

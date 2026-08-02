@@ -1,4 +1,4 @@
-import type { Tour, GalleryItem, HomePageData, HeroSlide, HeroButton, Stat, SectionHeading, SiteNotification, SiteSettings } from "@/types";
+import type { Tour, GalleryItem, HomePageData, HeroSlide, HeroButton, Stat, SectionHeading, SiteNotification, SiteSettings, Destination, Category, Review, BlogPost } from "@/types";
 import { urlFor } from "./sanity-image";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -274,5 +274,138 @@ export function sanitySiteSettingsToSiteSettings(
     googleMapsEmbed: raw.googleMapsEmbed ?? defaults.googleMapsEmbed,
     privacyPolicySlug: raw.privacyPolicySlug?.current ?? defaults.privacyPolicySlug,
     termsSlug: raw.termsSlug?.current ?? defaults.termsSlug,
+  };
+}
+
+interface SanityDestination {
+  _id: string;
+  name?: string;
+  slug?: { current?: string };
+  region?: string;
+  province?: string;
+  description?: string;
+  bestTime?: string;
+  coordinates?: { x?: number; y?: number };
+  image?: SanityImage;
+}
+
+export function sanityDestinationToDestination(
+  raw: SanityDestination,
+  tourCount: number
+): Destination {
+  return {
+    id: raw._id,
+    slug: raw.slug?.current ?? "",
+    name: raw.name ?? "",
+    region: raw.region ?? "",
+    province: raw.province ?? "",
+    description: raw.description ?? "",
+    bestTime: raw.bestTime ?? "",
+    coordinates: { x: raw.coordinates?.x ?? 0, y: raw.coordinates?.y ?? 0 },
+    image: resolveImage(raw.image),
+    tourCount,
+  };
+}
+
+interface SanityCategory {
+  _id: string;
+  name?: string;
+  slug?: { current?: string };
+  icon?: string;
+  description?: string;
+}
+
+export function sanityCategoryToCategory(raw: SanityCategory, count: number): Category {
+  return {
+    id: raw._id,
+    name: raw.name ?? "",
+    icon: raw.icon ?? "Mountain",
+    count,
+    description: raw.description ?? "",
+  };
+}
+
+function avatarFallback(seed: string | undefined): string {
+  const key = (seed ?? "avatar")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `https://picsum.photos/seed/avatar-${key || "avatar"}/200/200`;
+}
+
+interface SanityTestimonial {
+  _id: string;
+  name?: string;
+  location?: string;
+  avatar?: SanityImage;
+  rating?: number;
+  tour?: { title?: string };
+  comment?: string;
+  publishedAt?: string;
+}
+
+export function sanityTestimonialToReview(raw: SanityTestimonial): Review {
+  return {
+    id: raw._id,
+    name: raw.name ?? "",
+    location: raw.location ?? "",
+    avatar: resolveGalleryImage(raw.avatar, 200, 200) || avatarFallback(raw.name),
+    rating: raw.rating ?? 5,
+    tour: raw.tour?.title ?? "",
+    date: raw.publishedAt
+      ? new Date(raw.publishedAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+      : "",
+    comment: raw.comment ?? "",
+  };
+}
+
+type PortableTextBlock = {
+  _type?: string;
+  children?: { _type?: string; text?: string }[];
+};
+
+function portableTextToParagraphs(blocks: PortableTextBlock[] | undefined): string[] {
+  if (!Array.isArray(blocks)) return [];
+  return blocks
+    .filter((b) => b._type === "block")
+    .map((b) => (b.children ?? []).map((c) => c.text ?? "").join("").trim())
+    .filter(Boolean);
+}
+
+interface SanityBlogPost {
+  _id: string;
+  title?: string;
+  slug?: { current?: string };
+  excerpt?: string;
+  content?: PortableTextBlock[];
+  image?: SanityImage;
+  author?: string;
+  authorAvatar?: SanityImage;
+  category?: string;
+  tags?: string[];
+  readTime?: string;
+  publishedAt?: string;
+}
+
+export function sanityBlogToBlog(raw: SanityBlogPost): BlogPost {
+  return {
+    id: raw._id,
+    slug: raw.slug?.current ?? "",
+    title: raw.title ?? "",
+    excerpt: raw.excerpt ?? "",
+    content: portableTextToParagraphs(raw.content),
+    image: resolveImage(raw.image),
+    author: raw.author ?? "",
+    authorAvatar: resolveGalleryImage(raw.authorAvatar, 200, 200) || avatarFallback(raw.author),
+    date: raw.publishedAt
+      ? new Date(raw.publishedAt).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : "",
+    readTime: raw.readTime ?? "",
+    category: raw.category ?? "",
+    tags: raw.tags ?? [],
   };
 }
