@@ -84,7 +84,7 @@ http://localhost:3000
 ## Deployment
 
 - **Frontend:** Vercel
-- **Backend:** Railway
+- **Backend:** Render
 - **Database:** MongoDB Atlas
 - **CMS:** Sanity
 
