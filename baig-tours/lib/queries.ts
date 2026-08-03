@@ -281,7 +281,6 @@ const DEFAULT_HOME_PAGE: HomePageData = {
   heroSubheading:
     "From Hunza\u2019s golden orchards to the throne room of K2 \u2014 handcrafted Northern Pakistan journeys, guided by locals who call these valleys home.",
   heroSlides: [
-    { src: "https://picsum.photos/seed/baig-hero-karakoram/1920/1080", alt: "Karakoram mountain range at golden hour" },
     { src: "/images/baig_tours_nature_img.jpg", alt: "Pristine nature landscape of Northern Pakistan" },
     { src: "/images/baig_tours_nature2.jpg", alt: "Mountain valley with river flowing through" },
     { src: "/images/baig_tours_nature3.jpg", alt: "Snow-capped peaks towering over green meadows" },

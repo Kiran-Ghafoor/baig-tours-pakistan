@@ -16,7 +16,7 @@ export default async function DestinationsPage() {
         eyebrow="42 Regions Covered"
         title="Destinations"
         description="From glacial base camps to Mughal courtyards — pick a region to see everything we run there."
-        image="https://picsum.photos/seed/destinations-header/1800/700"
+        image="/images/baig_tours_nature_img.jpg"
       />
       <section className="bg-cream-200 py-16">
         <div className="container-app grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

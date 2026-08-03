@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
@@ -12,7 +10,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function check() {
       try {
-        const res = await fetch(`${API_URL}/api/auth/me`, { credentials: "include" });
+        const res = await fetch(`/api/auth/me`, { credentials: "include" });
         if (!res.ok) throw new Error("Not authenticated");
         setChecking(false);
       } catch {

@@ -1,58 +1,65 @@
+import { SignJWT, jwtVerify } from "jose";
+
 export const STUDIO_COOKIE_NAME = "baig_tours_studio_auth";
-const COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+export const SESSION_MAX_AGE_SECONDS = 24 * 60 * 60;
+
+export type StudioRole = "admin" | "editor" | "user";
+
+const STUDIO_ROLES: readonly StudioRole[] = ["admin", "editor", "user"];
+const STUDIO_ACCESS_ROLES: readonly StudioRole[] = ["admin", "editor"];
+
+export interface StudioSessionUser {
+  username: string;
+  role: StudioRole;
+}
 
 function cookieSecret(): string {
   return process.env.STUDIO_AUTH_SECRET || process.env.STUDIO_PASSWORD || "";
 }
 
 export function isStudioAuthConfigured(): boolean {
-  return Boolean(process.env.STUDIO_PASSWORD);
+  return Boolean(cookieSecret());
 }
 
-function constantTimeEquals(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0;
-}
-
-export function verifyStudioPassword(password: unknown): boolean {
-  const expected = process.env.STUDIO_PASSWORD || "";
-  if (!expected || typeof password !== "string" || password.length === 0) return false;
-  return constantTimeEquals(password, expected);
-}
-
-async function sign(payload: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(cookieSecret()),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
+export function isStudioRole(value: unknown): value is StudioRole {
+  return (
+    typeof value === "string" &&
+    (STUDIO_ROLES as readonly string[]).includes(value)
   );
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
-  return Array.from(new Uint8Array(signature))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }
 
-export async function isValidStudioSession(cookieValue: string | undefined): Promise<boolean> {
-  if (!isStudioAuthConfigured() || !cookieValue) return false;
-  const separator = cookieValue.lastIndexOf(".");
-  if (separator <= 0) return false;
-  const payload = cookieValue.slice(0, separator);
-  const signature = cookieValue.slice(separator + 1);
-  const expected = await sign(payload);
-  return constantTimeEquals(signature, expected);
+export function canAccessStudio(role: StudioRole): boolean {
+  return (STUDIO_ACCESS_ROLES as readonly StudioRole[]).includes(role);
 }
 
-export async function createStudioSessionCookie() {
-  const now = Math.floor(Date.now() / 1000);
-  const payload = `${now}`;
-  const value = `${payload}.${await sign(payload)}`;
+async function signSessionToken(user: StudioSessionUser): Promise<string> {
+  return new SignJWT({ role: user.role })
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setSubject(user.username)
+    .setIssuedAt()
+    .setExpirationTime(Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS)
+    .sign(new TextEncoder().encode(cookieSecret()));
+}
+
+export async function getSessionUser(token: string | undefined): Promise<StudioSessionUser | null> {
+  const secret = cookieSecret();
+  if (!secret || !token) return null;
+
+  try {
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), {
+      algorithms: ["HS256"],
+    });
+    if (typeof payload.sub !== "string" || !isStudioRole(payload.role)) {
+      return null;
+    }
+    return { username: payload.sub, role: payload.role };
+  } catch {
+    return null;
+  }
+}
+
+export async function createStudioSessionCookie(user: StudioSessionUser) {
+  const value = await signSessionToken(user);
 
   return {
     name: STUDIO_COOKIE_NAME,
@@ -61,7 +68,7 @@ export async function createStudioSessionCookie() {
     sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: COOKIE_MAX_AGE_SECONDS,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   } as const;
 }
 

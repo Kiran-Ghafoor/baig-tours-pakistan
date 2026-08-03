@@ -23,7 +23,7 @@ export default async function BookingPage({
         eyebrow="Reserve Your Spot"
         title="Book a Tour"
         description="Tell us the trip you have in mind — our team confirms availability and follows up within a few hours."
-        image="https://picsum.photos/seed/booking-header/1800/700"
+        image="/images/baig_tours_nature2.jpg"
       />
       <section className="bg-cream py-20">
         <div className="container-app max-w-3xl">

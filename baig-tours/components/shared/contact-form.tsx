@@ -26,14 +26,11 @@ export function ContactForm() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/contact`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
-        }
-      );
+      const res = await fetch(`/api/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error ?? "Failed to send message");

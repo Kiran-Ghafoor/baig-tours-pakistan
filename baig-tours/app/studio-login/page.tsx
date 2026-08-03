@@ -6,6 +6,7 @@ import { Lock } from "lucide-react";
 
 export default function StudioLoginPage() {
   const router = useRouter();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,7 +20,7 @@ export default function StudioLoginPage() {
       const res = await fetch("/api/studio-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
 
       if (!res.ok) {
@@ -52,13 +53,23 @@ export default function StudioLoginPage() {
         </p>
 
         <input
+          type="text"
+          name="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Username"
+          autoComplete="username"
+          className="mt-6 w-full rounded-lg border border-charcoal-900/10 bg-cream px-4 py-2.5 text-ink outline-none transition focus:border-gold-500"
+        />
+
+        <input
           type="password"
+          name="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          autoFocus
           autoComplete="current-password"
-          className="mt-6 w-full rounded-lg border border-charcoal-900/10 bg-cream px-4 py-2.5 text-ink outline-none transition focus:border-gold-500"
+          className="mt-3 w-full rounded-lg border border-charcoal-900/10 bg-cream px-4 py-2.5 text-ink outline-none transition focus:border-gold-500"
         />
 
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}

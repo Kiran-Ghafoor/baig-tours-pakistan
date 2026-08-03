@@ -34,7 +34,7 @@ export default async function SearchResultsPage({
             ? `Showing availability for ${params.month}${params.travelers ? ` · ${params.travelers} travelers` : ""}.`
             : "Browse every tour that matches your search."
         }
-        image={dest?.image ?? "https://picsum.photos/seed/search-header/1800/700"}
+        image={dest?.image ?? "/images/baig_tours_nature3.jpg"}
       />
       <section className="bg-cream py-16">
         <div className="container-app">

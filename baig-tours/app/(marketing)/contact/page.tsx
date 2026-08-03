@@ -25,7 +25,7 @@ export default async function ContactPage() {
         eyebrow="We'd Love To Hear From You"
         title="Contact Us"
         description="Questions about a route, a custom itinerary, or an existing booking — our team replies within a few hours."
-        image="https://picsum.photos/seed/contact-header/1800/700"
+        image="/images/baig_tours_nature5.jpg"
       />
       <section className="bg-cream py-20">
         <div className="container-app grid gap-12 lg:grid-cols-[1fr_1.2fr]">

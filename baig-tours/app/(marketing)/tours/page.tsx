@@ -28,7 +28,7 @@ export default async function ToursPage({
         eyebrow="96 Curated Itineraries"
         title="All Tours"
         description="Every trip is run by Baig Tours' own guides — filter by the kind of journey you're after."
-        image="https://picsum.photos/seed/tours-header/1800/700"
+        image="/images/baig_tours_nature4.jpg"
       />
       <section className="bg-cream py-16">
         <div className="container-app">

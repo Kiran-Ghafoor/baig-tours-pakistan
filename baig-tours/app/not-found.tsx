@@ -7,7 +7,7 @@ export default function NotFound() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-charcoal-950 px-6 text-center">
       <Image
-        src="https://picsum.photos/seed/404-mountains/1920/1080"
+        src="/images/baig_tours_nature_img.jpg"
         alt=""
         fill
         className="object-cover opacity-30"

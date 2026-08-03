@@ -17,7 +17,7 @@ export default async function BlogsPage() {
         eyebrow="The Journal"
         title="Travel Blogs"
         description="Everything we've learned running trips across Northern Pakistan, written by the guides who run them."
-        image="https://picsum.photos/seed/blogs-header/1800/700"
+        image="/images/baig_tours_nature4.jpg"
       />
       <section className="bg-cream py-16">
         <div className="container-app grid gap-8 lg:grid-cols-3">

@@ -37,7 +37,7 @@ export function BookingForm({ tours, preselectedSlug }: { tours: Tour[]; presele
 
   const onSubmit = async (values: FormValues) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/bookings`, {
+      const res = await fetch(`/api/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),

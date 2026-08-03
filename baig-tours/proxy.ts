@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isValidStudioSession, STUDIO_COOKIE_NAME } from "@/lib/studio-auth";
+import {
+  canAccessStudio,
+  getSessionUser,
+  STUDIO_COOKIE_NAME,
+} from "@/lib/studio-auth";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -8,10 +12,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const session = request.cookies.get(STUDIO_COOKIE_NAME)?.value;
-  const valid = await isValidStudioSession(session);
+  const token = request.cookies.get(STUDIO_COOKIE_NAME)?.value;
+  const user = token ? await getSessionUser(token) : null;
 
-  if (valid) {
+  if (user && canAccessStudio(user.role)) {
     return NextResponse.next();
   }
 

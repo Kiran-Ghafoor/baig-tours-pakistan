@@ -24,7 +24,7 @@ export default function AboutPage() {
         eyebrow="Our Story"
         title="About Baig Tours Pakistan"
         description="Nine years of turning Northern Pakistan's most remote roads into the safest, most memorable trips our travelers take."
-        image="https://picsum.photos/seed/about-header/1800/700"
+        image="/images/baig_tours_nature_img.jpg"
       />
 
       <section className="bg-cream py-20">
@@ -38,7 +38,7 @@ export default function AboutPage() {
           </div>
           <div className="relative aspect-[4/3] overflow-hidden rounded-xl2 shadow-card">
             <Image
-              src="https://picsum.photos/seed/about-team/1000/800"
+              src="/images/baig_tours_all_packages.jpg"
               alt="Baig Tours guide team in Northern Pakistan"
               fill
               className="object-cover"
