@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ChevronDown, PlayCircle } from "lucide-react";
+import { ChevronDown, PlayCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ReelCard, ReelLightbox, reels } from "@/components/home/travel-reels";
 import type { HeroSlide, HeroButton } from "@/types";
 
 const SLIDE_INTERVAL = 5000;
@@ -23,6 +24,21 @@ export function Hero({
   buttons: HeroButton[];
 }) {
   const [current, setCurrent] = useState(0);
+  const [showreelOpen, setShowreelOpen] = useState(false);
+  const [activeReel, setActiveReel] = useState<(typeof reels)[number] | null>(null);
+
+  useEffect(() => {
+    if (!showreelOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowreelOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [showreelOpen]);
 
   const next = useCallback(() => {
     setCurrent((i) => (i + 1) % slides.length);
@@ -101,7 +117,16 @@ export function Hero({
           {buttons.map((btn) => (
             <Button
               key={btn.label}
-              href={btn.url || undefined}
+              href={
+                btn.label === "Watch Showreel"
+                  ? undefined
+                  : btn.url || undefined
+              }
+              onClick={
+                btn.label === "Watch Showreel"
+                  ? () => setShowreelOpen(true)
+                  : undefined
+              }
               variant={btn.variant === "outline-light" ? "outline-light" : undefined}
               size="lg"
               className={btn.variant === "outline-light" ? "group" : undefined}
@@ -123,6 +148,46 @@ export function Hero({
       >
         <ChevronDown size={26} />
       </motion.div>
+
+      {showreelOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col bg-charcoal-950/95 p-6 backdrop-blur-sm"
+          onClick={() => setShowreelOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Travel reels from the trail"
+        >
+          <div
+            className="mx-auto flex w-full max-w-6xl items-center justify-between"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <span className="eyebrow text-gold-400">Watch Before You Book</span>
+              <h2 className="font-display text-2xl text-cream sm:text-3xl">
+                Travel reels from the trail
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowreelOpen(false)}
+              aria-label="Close showreel"
+              className="rounded-full p-2 text-cream/80 transition-colors hover:bg-cream/10 hover:text-cream"
+            >
+              <X size={28} />
+            </button>
+          </div>
+          <div
+            className="mx-auto mt-8 flex w-full max-w-6xl gap-5 overflow-x-auto pb-4 no-scrollbar"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {reels.map((reel) => (
+              <ReelCard key={reel.id} reel={reel} onOpen={setActiveReel} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeReel && <ReelLightbox reel={activeReel} onClose={() => setActiveReel(null)} />}
     </section>
   );
 }

@@ -262,21 +262,21 @@ export const blogPosts: BlogPost[] = [
 ];
 
 export const galleryItems: GalleryItem[] = [
-  { id: "g1", image: "/images/baig_tours_gallery_img.jpg", caption: "Golden hour at Attabad Lake", location: "Hunza", likes: 482 },
-  { id: "g2", image: "/images/baig_tours_gallery_img2.jpg", caption: "Camp night in Deosai", location: "Skardu", likes: 391 },
-  { id: "g3", image: "/images/baig_tours_gallery_img3.jpg", caption: "Nanga Parbat from Fairy Meadows", location: "Fairy Meadows", likes: 567 },
-  { id: "g4", image: "/images/baig_tours_gallery_img4.jpg", caption: "Chairlift over Malam Jabba", location: "Swat", likes: 274 },
-  { id: "g5", image: "/images/baig_tours_gallery_img5.jpg", caption: "Saif-ul-Malook at dawn", location: "Naran", likes: 618 },
-  { id: "g6", image: "/images/baig_tours_gallery_img6.jpg", caption: "Badshahi Mosque courtyard", location: "Lahore", likes: 340 },
-  { id: "g7", image: "/images/baig_tours_gallery_img7.jpg", caption: "Concordia panorama", location: "K2 Base Camp", likes: 705 },
-  { id: "g8", image: "/images/baig_tours_gallery_img8.jpg", caption: "Cable car above the pines", location: "Murree", likes: 219 },
-  { id: "g9", image: "/images/baig_tours_gallery_img9.jpg", caption: "Snow-capped peaks at sunrise", location: "Gilgit-Baltistan", likes: 512 },
-  { id: "g10", image: "/images/baig_tours_gallery10.jpg", caption: "Valley road through the north", location: "Northern Pakistan", likes: 328 },
-  { id: "g11", image: "/images/baig_tours_gallery_img11.jpg", caption: "Trekking through the highlands", location: "Karakoram", likes: 445 },
-  { id: "g12", image: "/images/baig_tours_gallery_12.jpg", caption: "Crystal clear alpine waters", location: "Skardu", likes: 389 },
-  { id: "g13", image: "/images/baig_tours_gallery_img13.jpg", caption: "Local village life in the mountains", location: "Hunza", likes: 276 },
-  { id: "g14", image: "/images/baig_tours_gallery_img14.jpg", caption: "Majestic mountain pass", location: "Deosai", likes: 503 },
-  { id: "g15", image: "/images/baig_tours_gallery_img15.jpg", caption: "Sunset over the Karakoram", location: "Gilgit-Baltistan", likes: 617 },
+  { id: "g1", image: "/images/baig_tours_gallery_img.jpg", caption: "Mushkpuri Top", location: "Abbottabad", likes: 482 },
+  { id: "g2", image: "/images/baig_tours_gallery_img2.jpg", caption: "Forest Trek - Mushkpuri Top", location: "Nathia Gali", likes: 391 },
+  { id: "g3", image: "/images/baig_tours_gallery_img3.jpg", caption: "Mountain Memories ", location: "Naran Valley", likes: 567 },
+  { id: "g4", image: "/images/baig_tours_gallery_img4.jpg", caption: "Happy Travelers", location: "Swat Valley", likes: 274 },
+  { id: "g5", image: "/images/baig_tours_gallery_img5.jpg", caption: "Snowy Escape ", location: "Murree", likes: 618 },
+  { id: "g6", image: "/images/baig_tours_gallery_img6.jpg", caption: "Into The Wild", location: "Mushkpuri Top", likes: 340 },
+  { id: "g7", image: "/images/baig_tours_gallery_img7.jpg", caption: "Little Explorer", location: "Babusar Top", likes: 705 },
+  { id: "g8", image: "/images/baig_tours_gallery_img8.jpg", caption: "Discovering the hidden Gems of the north", location: "Murree", likes: 219 },
+  { id: "g9", image: "/images/baig_tours_gallery_img9.jpg", caption: "Horse Riding in Mountains", location: "Hunza Valley", likes: 512 },
+  { id: "g10", image: "/images/baig_tours_gallery10.jpg", caption: "Abbottabad lake", location: "Hunza Valley", likes: 328 },
+  { id: "g11", image: "/images/baig_tours_gallery_img11.jpg", caption: "Enjoying the Scenic Views", location: "Kalam Valley", likes: 445 },
+  { id: "g12", image: "/images/baig_tours_gallery_12.jpg", caption: "Adventure Awaits ", location: "Naran", likes: 389 },
+  { id: "g13", image: "/images/baig_tours_gallery_img13.jpg", caption: "Happy Travelers", location: "Swat Valley", likes: 276 },
+  { id: "g14", image: "/images/baig_tours_gallery_img14.jpg", caption: "Chilling in the Mountains", location: "Hunza Valley", likes: 503 },
+  { id: "g15", image: "/images/baig_tours_gallery_img15.jpg", caption: "Mountain Hikers ", location: "Mushkpuri Top", likes: 617 },
 ];
 
 export const stats = [

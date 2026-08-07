@@ -14,7 +14,7 @@ export function PakistanMap({ destinations }: { destinations: Destination[] }) {
   if (!activeDest || destinations.length === 0) return null;
 
   return (
-    <section className="bg-cream py-24">
+    <section className="bg-cream pt-24 pb-8">
       <div className="container-app">
         <SectionHeading
           eyebrow="Plan By Region"
@@ -23,34 +23,34 @@ export function PakistanMap({ destinations }: { destinations: Destination[] }) {
         />
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
-          {/* Stylized map canvas */}
-          <div className="relative mx-auto aspect-[3/4] w-full max-w-md rounded-xl2 bg-gradient-to-b from-charcoal-900 to-charcoal-950 p-6 shadow-card">
-            <div className="absolute inset-6 rounded-[2rem] border border-gold-500/20" />
-            <span className="eyebrow absolute left-6 top-6 text-gold-400">
-              Northern Belt → South
-            </span>
-            {destinations.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => setActive(d.id)}
-                className="group absolute -translate-x-1/2 -translate-y-1/2"
-                style={{ left: `${d.coordinates.x}%`, top: `${d.coordinates.y * 0.85 + 8}%` }}
-                aria-label={`Show ${d.name} on map`}
-              >
-                <span
-                  className={`block h-3.5 w-3.5 rounded-full ring-4 transition-all ${
+          {/* Real map */}
+          <div>
+            <div className="relative mx-auto aspect-[3/4] w-full max-w-md overflow-hidden rounded-xl2 shadow-card ring-1 ring-charcoal-900/10">
+              <iframe
+                src="https://www.google.com/maps?q=Gilgit-Baltistan,+Pakistan&z=8&output=embed"
+                title="Real map showing Hunza, Skardu and Swat"
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                className="absolute inset-0 h-full w-full border-0"
+              />
+            </div>
+            <div className="mx-auto mt-4 flex max-w-md flex-wrap justify-center gap-2">
+              {destinations.map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => setActive(d.id)}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                     active === d.id
-                      ? "scale-125 bg-gold-500 ring-gold-500/30"
-                      : "bg-cream/60 ring-cream/10 group-hover:bg-gold-400"
+                      ? "bg-gold-500 text-charcoal-950"
+                      : "bg-cream-100 text-ink-muted ring-1 ring-charcoal-900/10 hover:bg-gold-500/20"
                   }`}
-                />
-                {active === d.id && (
-                  <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gold-500 px-3 py-1 text-[10px] font-semibold text-charcoal-950">
-                    {d.name}
-                  </span>
-                )}
-              </button>
-            ))}
+                  aria-label={`Show ${d.name} on map`}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Active destination preview */}
